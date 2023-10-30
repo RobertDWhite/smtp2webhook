@@ -1,3 +1,4 @@
+# Build stage
 FROM golang:1.18.3-alpine AS builder
 
 WORKDIR /go/src/app
@@ -11,8 +12,12 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
   -ldflags '-extldflags "-static"' \
   -o /go/bin/smtp2webhook
 
+# Final stage
+FROM alpine:latest
 
-FROM scratch
+# Install CA certificates
+RUN apk --no-cache add ca-certificates
+
 COPY --from=builder /go/bin/smtp2webhook /smtp2webhook
 
 ENTRYPOINT [ "/smtp2webhook" ]
