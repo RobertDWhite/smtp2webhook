@@ -18,7 +18,7 @@ import (
 const (
 	name      = "smtp2webhook"
 	envPrefix = "SMTP2WEBHOOK"
-	version   = "2.0"
+	version   = "2.2"
 )
 
 var (
