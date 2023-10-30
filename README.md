@@ -11,9 +11,7 @@ services:
     ports:
       - "25:25"
     environment:
-      - SMTP2WEBHOOK_DOMAIN=exampledomain.com
-      - SMTP2WEBHOOK_CODE=webhook
-      - SMTP2WEBHOOK_URL_IDENTIFIER=https://webhook.white.fm/IDENTIFIER
+      - WEBHOOK_URL=https://webhooks.white.fm/post/UNUmcoRPEj4mCmmTUEozFVbwtj2Fv6xb4qCdbfV9ZhBrZx8MrQk8jqTpHiq2Jyjs
 ```
 
-Will forward mail to `webhook+IDENTIFIER@exampledomain.com` to `https://webhook.white.fm/IDENTIFIER`.
+Will forward all mail to the specified Webhook.
