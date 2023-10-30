@@ -11,7 +11,7 @@ services:
     ports:
       - "25:25"
     environment:
-      - WEBHOOK_URL=https://webhooks.white.fm/post/UNUmcoRPEj4mCmmTUEozFVbwtj2Fv6xb4qCdbfV9ZhBrZx8MrQk8jqTpHiq2Jyjs
+      - WEBHOOK_URL=https://EXAMPLEURL
 ```
 
 Will forward all mail to the specified Webhook.
