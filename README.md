@@ -11,7 +11,7 @@ services:
     ports:
       - "25:25"
     environment:
-      - WEBHOOK_URL=https://EXAMPLEURL
+      - WEBHOOK_URL=https://EXAMPLE.COM
 ```
 
 Will forward all mail to the specified Webhook.
