@@ -132,36 +132,40 @@ func (s *Session) Mail(from string, opts smtp.MailOptions) error {
 	return nil
 }
 
+
 func sanitizeEmailContent(content string) string {
-	sanitizedContent := html.StripTags(content)
-	sanitizedContent = html.EscapeString(sanitizedContent)
-	return sanitizedContent
+    sanitizedContent := html.EscapeString(content) // Fix: Use EscapeString instead of StripTags
+    return sanitizedContent
 }
 
 func (s *Session) Data(r io.Reader) error {
-	log.Println(s.From, "->", s.To)
+    log.Println(s.From, "->", s.To)
 
-	buf, err := ioutil.ReadAll(r)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+    buf, err := ioutil.ReadAll(r)
+    if err != nil {
+        log.Println(err)
+        return err
+    }
 
-	sanitizedContent := sanitizeEmailContent(string(buf))
+    sanitizedContent := sanitizeEmailContent(string(buf))
 
-	if s.Debug {
-		log.Println(sanitizedContent)
-	}
+    if s.Debug {
+        log.Println(sanitizedContent)
+    }
 
-	if s.WebhookURL == "" {
-		return nil
-	}
+    if s.WebhookURL == "" {
+        return nil
+    }
 
-	resp, err := http.Post(s.WebhookURL, "message/rfc822", bytes.NewReader([]byte(sanitizedContent)))
-	if err != nil {
-		log.Println("POST", s.WebhookURL, err)
-		return err
-	}
+    _, err = http.Post(s.WebhookURL, "message/rfc822", bytes.NewReader([]byte(sanitizedContent))) // Fix: Remove unused resp variable
+    if err != nil {
+        log.Println("POST", s.WebhookURL, err)
+        return err
+    }
+
+    return nil
+}
+
 
 func (s *Session) Rcpt(to string) error {
 	s.To = to
