@@ -8,9 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/mail"
 	"os"
-	"strings"
 	"html"
 
 	"github.com/emersion/go-smtp"
@@ -31,6 +29,7 @@ var (
 	tlsKeyPath   string
 	healthcheck  bool
 	printVersion bool
+	defaultWebhookURL string
 )
 
 var webhooks = make(map[string]string)
@@ -50,31 +49,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	for _, s := range os.Environ() {
-		kv := strings.SplitN(s, "=", 2)
-		if strings.HasPrefix(kv[0], "SMTP2WEBHOOK_URL_") {
-			key := code + "+" + strings.ToLower(kv[0][17:]) + "@"
-			value := kv[1]
-			webhooks[key] = value
-
-			log.Printf("Forwarding %s%s to %s\n", key, domain, value)
-		}
-	}
-
-	if healthcheck {
-		client, err := smtp.Dial("127.0.0.1:25")
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		err = client.Hello("localhost")
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		os.Exit(0)
+	defaultWebhookURL = os.Getenv("WEBHOOK_URL")
+	if defaultWebhookURL == "" {
+		log.Fatal("WEBHOOK_URL environment variable is not set")
 	}
 
 	s := smtp.NewServer(&Backend{})
@@ -85,9 +62,11 @@ func main() {
 			log.Fatal(err)
 			os.Exit(1)
 		}
-		s.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+		s.TLSConfig = &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			InsecureSkipVerify: true,
+		}
 	}
-
 	s.Domain = domain
 	s.AllowInsecureAuth = true
 	s.AuthDisabled = true
@@ -132,71 +111,61 @@ func (s *Session) Mail(from string, opts smtp.MailOptions) error {
 	return nil
 }
 
-
 func sanitizeEmailContent(content string) string {
-    sanitizedContent := html.EscapeString(content) // Fix: Use EscapeString instead of StripTags
+    sanitizedContent := html.EscapeString(content)
     return sanitizedContent
 }
 
 func (s *Session) Data(r io.Reader) error {
     log.Println(s.From, "->", s.To)
-
+	
     buf, err := ioutil.ReadAll(r)
     if err != nil {
         log.Println(err)
         return err
     }
 
-    sanitizedContent := sanitizeEmailContent(string(buf))
-
     if s.Debug {
-        log.Println(sanitizedContent)
+        log.Println(string(buf))
     }
 
     if s.WebhookURL == "" {
         return nil
     }
 
-    _, err = http.Post(s.WebhookURL, "message/rfc822", bytes.NewReader([]byte(sanitizedContent))) // Fix: Remove unused resp variable
+    resp, err := http.Post(s.WebhookURL, "message/rfc822", bytes.NewReader(buf))
+	log.Println("Received email content:", string(buf))
+	log.Println("Forwarding email to:", s.WebhookURL)
+
     if err != nil {
         log.Println("POST", s.WebhookURL, err)
         return err
     }
 
-    return nil
+    log.Println("POST", s.WebhookURL, resp.StatusCode)
+
+    if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+        return nil
+    } else {
+        return &smtp.SMTPError{
+            Code:         450,
+            EnhancedCode: smtp.EnhancedCode{4, 5, 0},
+            Message:      "Failed to relay message",
+        }
+    }
 }
 
 
 func (s *Session) Rcpt(to string) error {
 	s.To = to
 
-	e, err := mail.ParseAddress(to)
-	if err != nil {
-		log.Println(s.From, "->", s.To, "501")
-		log.Println(err)
-		return err
-	}
+	// Set the forwarding endpoint for all incoming emails
+	s.WebhookURL = defaultWebhookURL
 
-	if strings.HasPrefix(e.Address, "postmaster@") || strings.HasPrefix(e.Address, "abuse@") {
-		s.Debug = true
-		return nil
-	}
+	log.Printf("Forwarding email to: %s", s.WebhookURL)
 
-	for prefix, url := range webhooks {
-		if strings.HasPrefix(e.Address, prefix) {
-			s.WebhookURL = url
-			return nil
-		}
-	}
-
-	log.Println(s.From, "->", s.To, "550")
-	return &smtp.SMTPError{
-		Code:         550,
-		EnhancedCode: smtp.EnhancedCode{5, 5, 0},
-		Message:      "No mailbox",
-	}
+	return nil
 }
-
 
 func (s *Session) Reset() {}
 
