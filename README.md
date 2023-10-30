@@ -6,7 +6,7 @@ This rendition will forward all mail to the specified webhook.
 
 Build yourself with the Dockerfile, or pull registry.white.fm/smtp2webhook:latest
 
-To build, 
+To build, clone the repo and:
 ```docker build -t smtp2webhook:2.2 .  ```
 
 ---
